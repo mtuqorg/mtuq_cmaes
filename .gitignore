@@ -1,0 +1,5 @@
+*.pyc
+
+mtuq_cmaes.egg-info
+*.pdf
+*.png
