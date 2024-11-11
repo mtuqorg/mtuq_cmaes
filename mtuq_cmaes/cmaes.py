@@ -11,6 +11,10 @@ from mtuq.graphics.uq._matplotlib import _plot_force_matplotlib
 from mtuq.io.clients.AxiSEM_NetCDF import Client as AxiSEM_Client
 from mtuq.greens_tensor.base import GreensTensorList
 from mtuq.misfit import Misfit, PolarityMisfit, WaveformMisfit
+from mtuq.misfit.waveform import level2 
+from mtuq_cmaes.misfit import level2_replacer 
+level2.misfit = level2_replacer.misfit
+
 from mtuq.misfit.waveform import c_ext_L2, calculate_norm_data
 from mtuq.process_data import ProcessData
 from mtuq_cmaes.cmaes_init import (
