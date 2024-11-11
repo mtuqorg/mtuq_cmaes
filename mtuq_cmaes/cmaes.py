@@ -6,7 +6,7 @@ from mpi4py import MPI
 from mtuq import MTUQDataFrame
 from mtuq.dataset import Dataset
 from mtuq.event import Origin
-from mtuq.graphics import plot_combined, plot_misfit_force
+# from mtuq.graphics import plot_combined, plot_misfit_force
 from mtuq.graphics.uq._matplotlib import _plot_force_matplotlib
 from mtuq.io.clients.AxiSEM_NetCDF import Client as AxiSEM_Client
 from mtuq.greens_tensor.base import GreensTensorList

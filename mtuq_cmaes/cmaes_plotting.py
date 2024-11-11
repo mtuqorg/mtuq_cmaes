@@ -9,7 +9,6 @@ from mtuq.misfit import Misfit, PolarityMisfit
 from mtuq.io.clients.AxiSEM_NetCDF import Client as AxiSEM_Client
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
-from mtuq.graphics import plot_combined, plot_misfit_force
 
 def result_plots(cmaes_instance, data_list, stations, misfit_list, process_list, db_or_greens_list, max_iter, plot_interval, iter_count, iteration):
     if (iteration + 1) % plot_interval == 0 or iteration == max_iter - 1 or (cmaes_instance.ipop and cmaes_instance.ipop_terminated):
@@ -24,11 +23,13 @@ def result_plots(cmaes_instance, data_list, stations, misfit_list, process_list,
 
                 # If mode is mt, mt_dev or mt_dc, plot the misfit map
             if cmaes_instance.mode in ['mt', 'mt_dev', 'mt_dc']:
-                plot_combined(cmaes_instance.event_id + '_combined_misfit_map.png', result, colormap='viridis', best_vw=(V, W))
+                print("Not implemented yet")
+                # plot_combined(cmaes_instance.event_id + '_combined_misfit_map.png', result, colormap='viridis', best_vw=(V, W))
             elif cmaes_instance.mode == 'force':
                 print('Plotting results for iteration %d\n' % (iteration + 1 +iter_count))
                 result = cmaes_instance.mutants_logger_list
-                plot_misfit_force(cmaes_instance.event_id + '_misfit_map.png', result, colormap='viridis', backend=_plot_force_matplotlib, plot_type='colormesh', best_force=cmaes_instance.return_candidate_solution()[0][1::])
+                print("Not implemented yet")
+                # plot_misfit_force(cmaes_instance.event_id + '_misfit_map.png', result, colormap='viridis', backend=_plot_force_matplotlib, plot_type='colormesh', best_force=cmaes_instance.return_candidate_solution()[0][1::])
 
 
 def plot_mean_waveforms(cmaes_instance, data_list, process_list, misfit_list, stations, db_or_greens_list, iteration):
