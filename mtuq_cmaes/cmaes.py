@@ -718,7 +718,7 @@ class CMA_ES(object):
                 coordinates = self.transformed_mutants.T
                 misfit_values = self._misfit_holder
                 results = np.hstack((coordinates, misfit_values))
-                columns_labels = self._parameters_names + ['misfit']
+                columns_labels = self._parameters_names + [0]
                 da = pd.DataFrame(
                     data=results,
                     columns=columns_labels
