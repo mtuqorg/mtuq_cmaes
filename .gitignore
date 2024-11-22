@@ -1,5 +1,8 @@
 *.pyc
 
+build/
+dist/
+
 mtuq_cmaes.egg-info
 *.pdf
 *.png
