@@ -30,12 +30,11 @@ def result_plots(cmaes_instance, data_list, stations, misfit_list, process_list,
 
                 # If mode is mt, mt_dev or mt_dc, plot the misfit map
             if cmaes_instance.mode in ['mt', 'mt_dev', 'mt_dc']:
-                print("Not implemented yet")
-                # plot_combined(cmaes_instance.event_id + '_combined_misfit_map.png', result, colormap='viridis', best_vw=(V, W))
+                plot_combined(cmaes_instance.event_id + '_combined_misfit_map.png', result, colormap='viridis')
             elif cmaes_instance.mode == 'force':
                 print('Plotting results for iteration %d\n' % (iteration + 1 +iter_count))
                 result = cmaes_instance.mutants_logger_list
-                print("Not implemented yet")
+                print("Not tested yet")
                 # plot_misfit_force(cmaes_instance.event_id + '_misfit_map.png', result, colormap='viridis', backend=_plot_force_matplotlib, plot_type='colormesh', best_force=cmaes_instance.return_candidate_solution()[0][1::])
 
 
@@ -88,7 +87,7 @@ def plot_combined(filename, ds, **kwargs):
     # Create a temporary file for the lune plot
     with tempfile.NamedTemporaryFile(suffix=".png") as tmpfile_lune:
         # Generate the lune plot
-        _plot_lune(tmpfile_lune.name, misfit_lune, backend=_plot_lune_matplotlib, plot_type='colormesh', **kwargs)
+        _plot_lune(tmpfile_lune.name, misfit_lune, backend=_plot_lune_matplotlib, plot_type='colormesh', clip_interval=[0,90], **kwargs)
 
         # Load the lune plot into an image
         img_lune = plt.imread(tmpfile_lune.name)
@@ -101,7 +100,7 @@ def plot_combined(filename, ds, **kwargs):
     # Create a temporary file for the DC plot
     with tempfile.NamedTemporaryFile(suffix=".png") as tmpfile_dc:
         # Generate the DC plot
-        _plot_dc(tmpfile_dc.name, misfit_dc, backend=_plot_dc_matplotlib, **kwargs)
+        _plot_dc(tmpfile_dc.name, misfit_dc, backend=_plot_dc_matplotlib, clip_interval=[0,90], plot_colorbar=False, **kwargs)
 
         # Load the DC plot into an image
         img_dc = plt.imread(tmpfile_dc.name)
