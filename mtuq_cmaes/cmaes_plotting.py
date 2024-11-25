@@ -1,5 +1,5 @@
 import numpy as np
-from mtuq.graphics import plot_data_greens2, plot_data_greens1
+from mtuq.graphics import plot_data_greens2, plot_data_greens1, plot_misfit_dc
 from mtuq.graphics.uq._matplotlib import _hammer_projection, _generate_lune, _generate_sphere, _plot_lune_matplotlib, _plot_dc_matplotlib
 from mtuq.graphics.uq.lune import _plot_lune
 from mtuq.graphics.uq.double_couple import _plot_dc, _misfit_dc_random, _misfit_dc_regular   
@@ -29,8 +29,10 @@ def result_plots(cmaes_instance, data_list, stations, misfit_list, process_list,
                 V,W = cmaes_instance.return_candidate_solution()[0][1:3]
 
                 # If mode is mt, mt_dev or mt_dc, plot the misfit map
-            if cmaes_instance.mode in ['mt', 'mt_dev', 'mt_dc']:
+            if cmaes_instance.mode in ['mt', 'mt_dev']:
                 plot_combined(cmaes_instance.event_id + '_combined_misfit_map.png', result, colormap='viridis')
+            elif cmaes_instance.mode == 'mt_dc':
+                plot_misfit_dc(cmaes_instance.event_id + '_misfit_map.png', result, clip_interval=[0,90])
             elif cmaes_instance.mode == 'force':
                 print('Plotting results for iteration %d\n' % (iteration + 1 +iter_count))
                 result = cmaes_instance.mutants_logger_list
@@ -55,13 +57,13 @@ def plot_combined(filename, ds, **kwargs):
     # Make it so that the v column is the 2nd column in the DataArray or DataFrame.
     if "v" not in ds_lune:
         ds_lune["v"] = 0
-        ds_lune = ds_lune[["Mw", "v", "kappa", "sigma", "h", "misfit"]]
+        ds_lune = ds_lune[["Mw", "v", "kappa", "sigma", "h", 0]]
 
     # Check if key w is present in ds_lune, else add a column of same length as the other columns and fill it with zeros.
     # Make it so that the w column is the 3rd column in the DataArray or DataFrame.
     if "w" not in ds_lune:
         ds_lune["w"] = 0
-        ds_lune = ds_lune[["Mw", "v", "w", "kappa", "sigma", "h", "misfit"]]
+        ds_lune = ds_lune[["Mw", "v", "w", "kappa", "sigma", "h", 0]]
 
 
     # Apply the necessary preprocessing to each dataset
@@ -269,7 +271,15 @@ def _cmaes_scatter_plot(cmaes_instance):
                 w = np.zeros_like(m)
 
             # Handling the mean solutions
-            V, W = cmaes_instance.mean_logger_list['v'], cmaes_instance.mean_logger_list['w']
+            if 'v' in cmaes_instance.mean_logger_list:
+                V = cmaes_instance.mean_logger_list['v']
+            else:
+                V = np.zeros_like(cmaes_instance.mean_logger_list.iloc[:,0])
+
+            if 'w' in cmaes_instance.mean_logger_list:
+                W = cmaes_instance.mean_logger_list['w']
+            else:
+                W = np.zeros_like(cmaes_instance.mean_logger_list.iloc[:,0])
             if cmaes_instance.ipop:
                 restart = cmaes_instance.mean_logger_list['restart']
             else:
