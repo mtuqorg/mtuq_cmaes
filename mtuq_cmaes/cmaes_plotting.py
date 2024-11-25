@@ -34,7 +34,7 @@ def result_plots(cmaes_instance, data_list, stations, misfit_list, process_list,
             elif cmaes_instance.mode == 'force':
                 print('Plotting results for iteration %d\n' % (iteration + 1 +iter_count))
                 result = cmaes_instance.mutants_logger_list
-                print("Not tested yet")
+                print("Not implemented yet")
                 # plot_misfit_force(cmaes_instance.event_id + '_misfit_map.png', result, colormap='viridis', backend=_plot_force_matplotlib, plot_type='colormesh', best_force=cmaes_instance.return_candidate_solution()[0][1::])
 
 
@@ -387,7 +387,7 @@ def _cmaes_scatter_plot_dc(cmaes_instance):
         ax1.set_xlabel('Dip')
         ax1.set_ylabel('Strike')
 
-        ax1.set_xlim(1, 0)
+        ax1.set_xlim(0, 1)
         ax1.set_ylim(0, 360)
 
         ax1.set_xticks(h_ticks)
