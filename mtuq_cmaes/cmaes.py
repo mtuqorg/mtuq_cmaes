@@ -470,6 +470,9 @@ class CMA_ES(object):
             else:
                 self.best_misfit = misfit.min()
                 self.best_solution = self.mutants[:, 0].copy()
+        else:
+            self.best_misfit = None
+            self.best_solution = None
 
         # Broadcast the updated variables to all ranks
         self.best_misfit = self.comm.bcast(self.best_misfit, root=0)
