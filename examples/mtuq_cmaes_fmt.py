@@ -18,25 +18,26 @@ if __name__=='__main__':
     # Carries out CMA-ES inversion over moment tensor parameters
     #
     # USAGE
-    #   mpirun -n <NPROC> python CMAES.FullMomentTensor.py
+    #   mpirun -n <NPROC> python mtuq_cmaes_fmt.py
     # ---------------------------------------------------------------------
-    # The code is intended to be run in parallel, although the `greens` mode
-    # exhibits some scaling issues (potentially due to IO and MPI comm overheads).
+    # The code is intended to be run either sequentially if using the `greens`
+    #  mode) or in parallel (highly recomanded for `database` mode). 
     # ---------------------------------------------------------------------
     # The `greens` mode with 24 ~ 120 mutants per generation (CMAES parameter 'lambda')
-    # should only take a few minutes to run on a single core, and achieves better 
+    # should only take a few seconds to run on a single core, and achieves better 
     # results than when using a grid search. (No restriction of being on a grid, including 
     # finer Mw search).
     # The algorithm can converge with as low as 6 mutants per generation, but this is
     # not recommended as it will take more steps to converge, and is more prone to
     # getting stuck in local minima. This could be useful if you are trying to find
-    # other minima, but is not recommended for general use.
+    # other minima, but is not recommended for general use. 
     # ---------------------------------------------------------------------
     # The 'database' should be used when searching over depth / hypocenter.
     # I also recommend anything between 24 to 120 mutants per generation, (CMAES parameter 'lambda')
     # Each mutant will require its own greens functions, meaning the most compute time will be
     # spent fetching and pre-processing greens functions. This can be sped up by using a
     # larger number of cores, but the scaling is not perfect. (e.g. 24 cores is not 24x faster)
+    # The use of the ipop restart strategy has not been tested in this mode, so mileage may vary.
     # ---------------------------------------------------------------------
     # CMA-ES algorithm
     # 1 - Initialise the CMA-ES algorithm with a set of mutants
