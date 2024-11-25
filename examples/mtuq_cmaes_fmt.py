@@ -218,11 +218,17 @@ if __name__=='__main__':
     PROCESS = [process_bw, process_sw]  # add more as needed
     GREENS = [greens_bw, greens_sw] if mode == 'greens' else None  # add more as needed
 
-    popsize = 240 # -- CMA-ES population size - number of mutants (you can play with this value, 24 to 120 is a good range)
-    CMA = CMA_ES(parameter_list , origin=origin, lmbda=None, event_id=event_id, ipop=True)
-    CMA.sigma = 1.67 # -- CMA-ES step size, defined as the standard deviation of the population can be ajusted here (4 ~ 5 seems to provide a balanced exploration/exploitation and avoid getting stuck in local minima). 
+    ipop = True # -- IPOP automatically restarts the algorithm the iterations, with an increased population size. It generally improves the exploration of the parameter space.
+    
+    if not ipop:
+        popsize = 240 # -- CMA-ES population size - number of mutants (you can play with this value, 24 to 120 is a good range)
+        CMA = CMA_ES(parameter_list , origin=origin, lmbda=popsize, event_id=event_id, ipop=False)
+    else:
+        popsize = None # -- If popsize it None, it will use the smallest population size, based on the empirical rule of thumb: popsize = 4 + int(3 * np.log(N)), where N is the number of parameters to be optimized.
+        CMA = CMA_ES(parameter_list , origin=origin, lmbda=popsize, event_id=event_id, ipop=True)
+    CMA.sigma = 1.67 # -- CMA-ES step size, defined as the standard deviation of the population can be ajusted here (1.67 seems to provide a balanced exploration/exploitation and avoid getting stuck in local minima). 
     # The default value is otherwise 1 standard deviation (you can play with this value)
-    iter = 60 # -- Number of iterations (you can play with this value, 120 to 240 is a good range)
+    iter = 60 # -- Number of iterations (you can play with this value, 60 to 120 is a good range. If Using IPOP, you can use a lower number of iterations, as restart will potentially supersed the need for more iterations).
 
     if mode == 'database':
         CMA.Solve(DATA, stations, MISFIT, PROCESS, db, iter, wavelet, plot_interval=10, misfit_weights=[1., 12.])
