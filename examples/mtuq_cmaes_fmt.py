@@ -11,11 +11,6 @@ from mtuq.util import fullpath
 from mtuq.util.cap import parse_station_codes, Trapezoid
 from mtuq_cmaes import initialize_mt
 from mtuq_cmaes.cmaes import CMA_ES
-import matplotlib.pyplot as plt
-from mtuq.util.math import to_gamma, to_delta
-from mtuq.graphics.uq.lune import plot_misfit_lune
-from mtuq.graphics.uq._matplotlib import _plot_lune_matplotlib
-# from mtuq.graphics import plot_combined
 from mtuq_cmaes.cmaes_plotting import _cmaes_scatter_plot, _cmaes_scatter_plot_dc
 
 if __name__=='__main__':
