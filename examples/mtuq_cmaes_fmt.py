@@ -214,7 +214,7 @@ if __name__=='__main__':
     PROCESS = [process_bw, process_sw]  # add more as needed
     GREENS = [greens_bw, greens_sw] if mode == 'greens' else None  # add more as needed
 
-    ipop = True # -- IPOP automatically restarts the algorithm the iterations, with an increased population size. It generally improves the exploration of the parameter space.
+    ipop = True # -- IPOP automatically restarts the algorithm, with an increased population size. It generally improves the exploration of the parameter space.
     
     if not ipop:
         popsize = 240 # -- CMA-ES population size - number of mutants (you can play with this value, 24 to 120 is a good range)
@@ -246,6 +246,7 @@ if __name__=='__main__':
 
     # ================================================================================================
     # FOR EDUCATIONAL PURPOSE -- This is what is happening under the hood in the Solve function
+    #                              . . . not an actual code to run . . .
     # ================================================================================================
     # for i in range(iter):
     #     # ------------------
@@ -270,16 +271,16 @@ if __name__=='__main__':
     #     CMA.update_covariance()   # -- Update the covariance matrix
     #
     #     # ------------------  Plotting results ------------------
-    #     # if i = 0 or multiple of 10 and Last iteration:
-    #     if i == 0 or i % 10 == 0 or i == iter-1:
+    #     # if i multiple of `plot_interval` and Last iteration:
+    #     if i % plot_interval == 0 or i == iter-1:
     #         if mode == 'database':
-    #             CMA.plot_mean_waveforms(DATA, PROCESS, MISFIT, stations, db)
+    #             cmaes_instance.plot_mean_waveforms(DATA, PROCESS, MISFIT, stations, db)
     #         elif mode == 'greens':
-    #             CMA.plot_mean_waveforms(DATA, PROCESS, MISFIT, stations, db=greens)
+    #             cmaes_instance.plot_mean_waveforms(DATA, PROCESS, MISFIT, stations, db=greens)
     #
     #         if src_type == 'full' or src_type == 'deviatoric' or src_type == 'dc':
-    #             if comm.rank==0:
+    #             if CMA.comm.rank==0:
     #                 result = CMA.mutants_logger_list # This one is an important one! 
     #                 It returns a DataFrame, the same as when using a random grid search and is therefore compatible with the default mtuq plotting tools.
-    #                 plot_combined('combined.png', result, colormap='viridis')
+    #                 result_plots(CMA, data_list, stations, misfit_list, process_list, db_or_greens_list, max_iter, plot_interval, iter_count, iteration)
     # ================================================================================================
