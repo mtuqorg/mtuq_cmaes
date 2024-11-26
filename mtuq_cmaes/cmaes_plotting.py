@@ -1,5 +1,5 @@
 import numpy as np
-from mtuq.graphics import plot_data_greens2, plot_data_greens1, plot_misfit_dc
+from mtuq.graphics import plot_data_greens2, plot_data_greens1, plot_misfit_dc, plot_misfit_force
 from mtuq.graphics.uq._matplotlib import _hammer_projection, _generate_lune, _generate_sphere, _plot_lune_matplotlib, _plot_dc_matplotlib
 from mtuq.graphics.uq.lune import _plot_lune
 from mtuq.graphics.uq.double_couple import _plot_dc, _misfit_dc_random, _misfit_dc_regular   
@@ -37,7 +37,7 @@ def result_plots(cmaes_instance, data_list, stations, misfit_list, process_list,
                 print('Plotting results for iteration %d\n' % (iteration + 1 +iter_count))
                 result = cmaes_instance.mutants_logger_list
                 print("Not implemented yet")
-                # plot_misfit_force(cmaes_instance.event_id + '_misfit_map.png', result, colormap='viridis', backend=_plot_force_matplotlib, plot_type='colormesh', best_force=cmaes_instance.return_candidate_solution()[0][1::])
+                plot_misfit_force(cmaes_instance.event_id + '_misfit_map.png', result, plot_type='colormesh', clip_interval=[0,90])
 
 
 def plot_combined(filename, ds, **kwargs):
@@ -327,7 +327,7 @@ def _cmaes_scatter_plot(cmaes_instance):
 
             vmin, vmax = np.percentile(np.asarray(m), [0, 90])
 
-            cmaes_instance.ax.scatter(longitude, latitude, c=m, s=3, vmin=vmin, vmax=vmax, zorder=100, cmap='Greys_r')
+            cmaes_instance.ax.scatter(longitude, latitude, c=m, s=3, vmin=vmin, vmax=vmax, zorder=100)
             cmaes_instance.ax.scatter(LONGITUDE, LATITUDE, c=restart, marker='x', zorder=10000, cmap='tab10', s=6)
 
             cmaes_instance.fig.tight_layout()
