@@ -34,7 +34,7 @@ Once MTUQ is installed, the following steps can be followed to install the plug-
    
 ## Usage
 
-After installation, mtuq_cmaes can be imported and used as part of your MTUQ workflows. Refer to the example scripts provided in the `mtuq_cmaes/examples/` directory for a hands-on working script, based on MTUQ default example.
+After installation, mtuq_cmaes can be imported and used as part of your MTUQ workflows. Refer to the example scripts provided in the `mtuq_cmaes/examples/` directory for a hands-on working script, based on MTUQ default examples.
 
 
 ## Contributing
