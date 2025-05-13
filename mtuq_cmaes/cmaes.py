@@ -851,7 +851,7 @@ class CMA_ES(object):
                 print('Data arrays already cached. Nothing to do here.')
             pass
 
-    def Solve(self, data_list, stations, misfit_list, process_list, db_or_greens_list, max_iter=100, wavelet=None, plot_interval=10, iter_count=0, misfit_weights=None, **kwargs):
+    def Solve(self, data_list, stations, misfit_list, process_list, db_or_greens_list, max_iter=100, wavelet=None, plot_interval=10, iter_count=0, misfit_weights=None, normalize_data=True, **kwargs):
         """
         Solves for the best-fitting source model using the CMA-ES algorithm. This is the master method used in inversions. 
 
@@ -877,8 +877,8 @@ class CMA_ES(object):
             Interval at which plots of mean waveforms and results should be generated. Default is 10.
         iter_count : int, optional
             Current iteration count, should be useful for resuming. Default is 0.
-        src_type : str, optional
-            Type of source model, one of ['full', 'deviatoric', 'dc']. Default is full.
+        normalize_data : bool, optional
+            Whether to normalize the data during misfit evaluation. Default is True.
         misfit_weights : list, optional
             List of misfit weights. Default is None for equal weights.
         **kwargs
@@ -911,6 +911,10 @@ class CMA_ES(object):
 
         misfit_weights = [w / total_weight for w in misfit_weights]
 
+        if not normalize_data and misfit_weights is not None:
+            if self.rank == 0:
+                print("Warning: Using misfit_weights without normalizing the data, make sure the misfit weights values are set accordingly.")
+
         iteration = 0
         while iteration < max_iter:
             if self.rank == 0:
@@ -934,8 +938,9 @@ class CMA_ES(object):
                         self._prep_and_cache_C_arrays(raw_data_to_cache, raw_greens_to_cache, current_misfit, stations)
                     misfit_values = self.eval_fitness(current_data, stations, current_misfit, greens, **kwargs)
 
-                norm = self._get_data_norm(current_data, current_misfit)
-                misfit_values /= norm
+                if normalize_data:
+                    norm = self._get_data_norm(current_data, current_misfit)
+                    misfit_values /= norm
                 misfits.append(misfit_values)
 
             weighted_misfits = [w * m for w, m in zip(misfit_weights, misfits)]

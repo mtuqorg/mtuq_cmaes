@@ -227,9 +227,9 @@ if __name__=='__main__':
     iter = 60 # -- Number of iterations (you can play with this value, 60 to 120 is a good range. If Using IPOP, you can use a lower number of iterations, as restart will potentially supersed the need for more iterations).
 
     if mode == 'database':
-        CMA.Solve(DATA, stations, MISFIT, PROCESS, db, iter, wavelet, plot_interval=10, misfit_weights=[1., 12.])
+        CMA.Solve(DATA, stations, MISFIT, PROCESS, db, iter, wavelet, plot_interval=1000, misfit_weights=[1., 12.], normalize_data=True)
     elif mode == 'greens':
-        CMA.Solve(DATA, stations, MISFIT, PROCESS, GREENS, iter, plot_interval=10, misfit_weights=[1., 12.])
+        CMA.Solve(DATA, stations, MISFIT, PROCESS, GREENS, iter, plot_interval=1000, misfit_weights=[1., 12.], normalize_data=True)
 
     if comm.rank==0:
         result = CMA.mutants_logger_list # -- This is the list of mutants (i.e. the population) at each iteration
