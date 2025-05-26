@@ -136,10 +136,18 @@ def _get_greens(greens, stations, components):
 
     for _i, station in enumerate(stations):
         tensor = greens.select(station)[0]
-
-        # fill in array
         tensor._set_components(components)
-        array[_i, :, :, :] = tensor._array
+        expected_shape = array[_i, :, :, :].shape
+        actual_shape = tensor._array.shape
+        if actual_shape != expected_shape:
+            # Pad or trim the last dimension
+            min_len = min(expected_shape[-1], actual_shape[-1])
+            array[_i, :, :, :min_len] = tensor._array[..., :min_len]
+            if min_len < expected_shape[-1]:
+                # Pad the rest with zeros
+                array[_i, :, :, min_len:] = 0
+        else:
+            array[_i, :, :, :] = tensor._array
 
     return array
 

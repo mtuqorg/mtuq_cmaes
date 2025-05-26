@@ -146,6 +146,8 @@ class CMA_ES(object):
         Evaluates the misfit for each mutant of the population.
     _eval_fitness_db(self, data, stations, misfit, db_or_greens_list, process, wavelet)
         Helper function to evaluate fitness for 'db' mode.
+    _eval_fitness_db_multi(self, data, stations, misfit, db_or_greens_list, process, wavelet)
+        Helper function to evaluate fitness for 'db' mode with multiple wave types.
     _eval_fitness_greens(self, data, stations, misfit, db_or_greens_list)
         Helper function to evaluate fitness for 'greens' mode.
     fitness_sort(self, misfit)
@@ -368,6 +370,65 @@ class CMA_ES(object):
             self.misfit_val = self.comm.bcast(self.misfit_val, root=0)
             self.misfit_val = np.asarray(np.concatenate(self.misfit_val))
             return self.misfit_val
+
+    def _eval_fitness_db_multi(self, data, stations, misfit, db_or_greens_list, process, wavelet):
+        """
+        Efficiently evaluates misfits for multiple wave types (body/surface) in database mode.
+        Loads and convolves Green's functions only once per unique origin per process, then processes for each wave type.
+        Returns a list of misfit arrays (one per wave type).
+        """
+        # Ensure mutants are transformed and sources are generated before using create_origins
+        transform_mutants(self)
+        generate_sources(self)
+
+        # Check if latitude, longitude, and depth are absent from the parameters list
+        if not any(x in self._parameters_names for x in ['depth', 'latitude', 'longitude']):
+            if self.rank == 0 and self.verbose_level >= 1:
+                print('using catalog origin (multi)')
+            self.origins = [self.catalog_origin]
+        else:
+            if self.rank == 0 and self.verbose_level >= 1:
+                print('creating new origins list (multi)')
+            self.create_origins()
+
+        # Load and convolve Green's functions ONCE for all wave types
+        start_time = MPI.Wtime()
+        local_greens = db_or_greens_list.get_greens_tensors(stations, self.origins)
+        end_time = MPI.Wtime()
+        if self.rank == 0:
+            print('Fetching greens tensor: ' + str(end_time-start_time))
+        start_time = MPI.Wtime()
+        local_greens.convolve(wavelet)
+        end_time = MPI.Wtime()
+        if self.rank == 0:
+            print('Convolution: ' + str(end_time-start_time))
+
+        # For each wave type, process and compute misfit
+        misfit_results = []
+        for idx, (data, misfit, process) in enumerate(zip(data, misfit, process)):
+            start_time = MPI.Wtime()
+            processed_greens = local_greens.map(process)
+            end_time = MPI.Wtime()
+            if self.rank == 0:
+                print(f'Processing (wave type {idx}): ' + str(end_time-start_time))
+            # Compute misfit for each mutant/origin
+            if not any(x in self._parameters_names for x in ['depth', 'latitude', 'longitude']):
+                # All mutants share the same origin
+                local_misfit_val = misfit(data, processed_greens, self.sources)
+                local_misfit_val = np.asarray(local_misfit_val).T
+            else:
+                # Each mutant has its own origin
+                local_misfit_val = [misfit(data, processed_greens.select(origin), np.array([self.sources[_i]])) for _i, origin in enumerate(self.origins)]
+                local_misfit_val = np.asarray(local_misfit_val).T[0]
+            if self.verbose_level >= 2:
+                print(f'local misfit (wave type {idx}) is :', local_misfit_val)
+            # Gather local misfit values
+            misfit_val = self.comm.gather(local_misfit_val.T, root=0)
+            # Broadcast the gathered values and concatenate to return across processes.
+            misfit_val = self.comm.bcast(misfit_val, root=0)
+            misfit_val = np.asarray(np.concatenate(misfit_val))
+            misfit_results.append(misfit_val)
+        return misfit_results
 
     def _eval_fitness_greens(self, data, stations, misfit, db_or_greens_list):
         """
@@ -923,25 +984,27 @@ class CMA_ES(object):
             draw_mutants(self)
 
             misfits = []
-            for j, (current_data, current_misfit, process) in enumerate(zip(data_list, misfit_list, process_list)):
-                mode = 'db' if isinstance(db_or_greens_list, AxiSEM_Client) else 'greens'
-                # get greens[j] or db depending on mode from db_or_greens_list
-                greens = db_or_greens_list[j] if mode == 'greens' else None
-                db = db_or_greens_list if mode == 'db' else None
-
-                if mode == 'db':
-                    misfit_values = self.eval_fitness(current_data, stations, current_misfit, db, process_list[j], wavelet, **kwargs)
-                elif mode == 'greens':
+            mode = 'db' if isinstance(db_or_greens_list, AxiSEM_Client) else 'greens'
+            if mode == 'db':
+                # Efficient multi-wave misfit evaluation in db mode
+                misfit_results = self._eval_fitness_db_multi(data_list, stations, misfit_list, db_or_greens_list, process_list, wavelet)
+                for j, misfit_values in enumerate(misfit_results):
+                    if normalize_data:
+                        norm = self._get_data_norm(data_list[j], misfit_list[j])
+                        misfit_values = misfit_values / norm
+                    misfits.append(misfit_values)
+            else:
+                for j, (current_data, current_misfit, process) in enumerate(zip(data_list, misfit_list, process_list)):
+                    greens = db_or_greens_list[j]
                     if iteration == 1 and type(current_misfit) == WaveformMisfit:
                         raw_greens_to_cache = copy.deepcopy(greens)
                         raw_data_to_cache = copy.deepcopy(current_data)
                         self._prep_and_cache_C_arrays(raw_data_to_cache, raw_greens_to_cache, current_misfit, stations)
                     misfit_values = self.eval_fitness(current_data, stations, current_misfit, greens, **kwargs)
-
-                if normalize_data:
-                    norm = self._get_data_norm(current_data, current_misfit)
-                    misfit_values /= norm
-                misfits.append(misfit_values)
+                    if normalize_data:
+                        norm = self._get_data_norm(current_data, current_misfit)
+                        misfit_values = misfit_values / norm
+                    misfits.append(misfit_values)
 
             weighted_misfits = [w * m for w, m in zip(misfit_weights, misfits)]
             total_missfit = sum(weighted_misfits)
