@@ -360,9 +360,19 @@ def _corr_1_2(data, greens, padding):
     for _i in range(Nstations):
         for _j in range(Ncomponents):
             for _k in range(Ngreens):
-
-                corr[_i, _j, _k, :] = correlate(
-                    greens[_i, _j, _k, :], data[_i, _j, :])
+                result = correlate(greens[_i, _j, _k, :], data[_i, _j, :])
+                expected_len = padding[0]+padding[1]+1
+                # Temporary patch!!!: if result is too short, pad with zeros; if too long, trim
+                # This is a workaround for the issue where the correlation result length. I might be able
+                # to patch upstream of this function if i found the root cause of the issue, but for now
+                # this is a quick fix to avoid the shape mismatch error.
+                if result.shape[0] < expected_len:
+                    print(f"[PATCH] _corr_1_2: Padding correlate result from {result.shape[0]} to {expected_len}")
+                    result = np.pad(result, (0, expected_len - result.shape[0]), 'constant')
+                elif result.shape[0] > expected_len:
+                    print(f"[PATCH] _corr_1_2: Trimming correlate result from {result.shape[0]} to {expected_len}")
+                    result = result[:expected_len]
+                corr[_i, _j, _k, :] = result
 
     return corr
 
