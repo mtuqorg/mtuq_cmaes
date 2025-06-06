@@ -228,11 +228,11 @@ def plot_mean_waveforms(cmaes_instance, data_list, process_list, misfit_list, st
 
     # Plot based on the number of ProcessData objects in the process_list
     if len(process) == 2:
-        plot_data_greens2(name_string + '.png',
+        plot_data_greens2(name_string + '.pdf',
                             data[0], data[1], greens[0], greens[1], process[0], process[1],
                             misfit[0], misfit[1], stations, final_origin, best_source, lune_dict)
     elif len(process) == 1:
-        plot_data_greens1(name_string + '.png',
+        plot_data_greens1(name_string + '.pdf',
                             data[0], greens[0], process[0], misfit[0], stations, final_origin, best_source, lune_dict)
 
 
