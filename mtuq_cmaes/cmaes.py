@@ -13,6 +13,7 @@ from mtuq.greens_tensor.base import GreensTensorList
 from mtuq.misfit import Misfit, PolarityMisfit, WaveformMisfit
 from mtuq.misfit.waveform import level2 
 from mtuq_cmaes.misfit import level2_replacer 
+from mtuq_cmaes.greens import batch_process_greens
 level2.misfit = level2_replacer.misfit
 
 from mtuq.misfit.waveform import c_ext_L2, calculate_norm_data
@@ -310,7 +311,13 @@ class CMA_ES(object):
         misfit_results = []
         for idx, (d, m, p) in enumerate(zip(data, misfit, process)):
             start_time = MPI.Wtime()
-            processed_greens = local_greens.map(p)
+            mode_batch_process_greens = True
+            if mode_batch_process_greens:
+                processed_greens = batch_process_greens(local_greens.copy(), p, scaling_coefficient=1.e5, scaling_power=0.5, zerophase=False)
+            else:
+                if self.rank == 0:
+                    print(f'Processing wave type {idx} with {len(local_greens)} Greens tensors')
+                processed_greens = local_greens.map(p)
             end_time = MPI.Wtime()
             if self.rank == 0:
                 print(f'Processing (wave type {idx}): ' + str(end_time-start_time))
