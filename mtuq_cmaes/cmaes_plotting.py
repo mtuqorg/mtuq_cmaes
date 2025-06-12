@@ -180,13 +180,6 @@ def plot_mean_waveforms(cmaes_instance, data_list, process_list, misfit_list, st
 
     mode_dimensions = modes[cmaes_instance.mode]
 
-    # Pad mean_solution based on moment tensor mode (deviatoric or double couple)
-    if cmaes_instance.mode == 'mt_dev':
-        mean_solution = np.insert(mean_solution, 2, 0, axis=0)
-    elif cmaes_instance.mode == 'mt_dc':
-        mean_solution = np.insert(mean_solution, 1, 0, axis=0)
-        mean_solution = np.insert(mean_solution, 2, 0, axis=0)
-
     solution_grid = UnstructuredGrid(dims=mode_dimensions, coords=mean_solution, callback=cmaes_instance.callback)
 
     final_origin = final_origin[0]

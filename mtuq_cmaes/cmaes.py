@@ -605,63 +605,92 @@ class CMA_ES(object):
             if 'longitude' in self._parameters_names:
                 setattr(self.origins[-1], 'longitude', longitude[i])
 
-    def return_candidate_solution(self, id=None):
+    def return_candidate_solution(self, mode='mean'):
         """
-        Returns the candidate solution for a given mutant.
+        Returns the candidate solution based on the specified mode.
 
         Parameters
         ----------
-        id : int, optional
-            The index of the mutant. If None, returns the mean solution.
+        mode : str, optional
+            The mode for selecting the candidate solution:
+            - 'absolute': Returns the solution with the absolute minimum misfit 
+              from all logged mutants across all iterations.
+            - 'mean': Returns the best mean solution from all logged iterations.
+            Default is 'mean_min'.
 
         Returns
         -------
         tuple
-            The transformed mean and the origins.
+            The transformed solution and the origins.
         """
         # Only required on rank 0
         if self.rank == 0:
-            if not id == None:
-                return_x = np.array([self.mutants[:, id]]).T
-            else:
-                return_x = np.asarray([self.best_solution.copy()]).T
-            self.transformed_mean = np.zeros_like(return_x)
-            for _i, param in enumerate(self._parameters):
-                # Print paramter scaling if verbose
-                if param.scaling == 'linear':
-                    self.transformed_mean[_i] = linear_transform(return_x[_i], param.lower_bound, param.upper_bound)
-                elif param.scaling == 'log':
-                    self.transformed_mean[_i] = logarithmic_transform(return_x[_i], param.lower_bound, param.upper_bound)
+            if mode == 'absolute':
+                # Find the solution with absolute minimum misfit from mutants_logger_list
+                if self.mutants_logger_list.empty:
+                    raise ValueError("No mutants logged yet. Cannot return absolute minimum solution.")
+                
+                # Find the row with minimum misfit (column 0)
+                min_idx = self.mutants_logger_list[0].idxmin()
+                best_row = self.mutants_logger_list.loc[min_idx]
+                
+                # Extract parameter values (excluding the misfit column 0)
+                candidate_params = []
+                if self.mode.startswith('mt'):
+                    candidate_params = np.array(best_row[:6])
+                elif self.mode.startswith('force'):
+                    candidate_params = np.array(best_row[:3])
+                
+            elif mode == 'mean':
+                # Find the best mean solution from mean_logger_list
+                if self.mean_logger_list.empty:
+                    raise ValueError("No mean solutions logged yet. Cannot return best mean solution.")
+                
+                # Find the row with minimum misfit if misfit column exists, otherwise use the last entry
+                if 0 in self.mean_logger_list.columns:
+                    min_idx = self.mean_logger_list[0].idxmin()
+                    best_row = self.mean_logger_list.loc[min_idx]
                 else:
-                    raise ValueError('Unrecognized scaling, must be linear or log')
-                # Apply optional projection operator to each parameter
-                if not param.projection is None:
-                    self.transformed_mean[_i] = np.asarray(list(map(param.projection, self.transformed_mean[_i])))
-
+                    # If no misfit column, use the most recent mean (last row)
+                    best_row = self.mean_logger_list.iloc[-1]
+                
+                # Extract parameter values
+                candidate_params = []
+                if self.mode.startswith('mt'):
+                    candidate_params = np.array(best_row[:6])
+                elif self.mode.startswith('force'):
+                    candidate_params = np.array(best_row[:3])
+                
+            else:
+                raise ValueError(f"Invalid mode '{mode}'. Must be 'absolute' or 'mean'.")
+            
+            # The candidate_params are already in physical coordinates from the logged data
+            # Reshape to column vector for consistency with origin creation
+            self.transformed_mean = np.array([candidate_params]).T
+            
             # Check which of the three origin modifiers are in the parameters
             if 'depth' in self._parameters_names:
-                depth = self.transformed_mean[self._parameters_names.index('depth')]
+                depth = best_row['depth']
             else:
                 depth = self.catalog_origin.depth_in_m
             if 'latitude' in self._parameters_names:
-                latitude = self.transformed_mean[self._parameters_names.index('latitude')]
+                latitude = best_row['latitude']
             else:
                 latitude = self.catalog_origin.latitude
             if 'longitude' in self._parameters_names:
-                longitude = self.transformed_mean[self._parameters_names.index('longitude')]
+                longitude = best_row['longitude']
             else:
                 longitude = self.catalog_origin.longitude
             
-            self.origins = []
-            for i in range(len(self.transformed_mean[0])):
-                self.origins += [self.catalog_origin.copy()]
-                if 'depth' in self._parameters_names:
-                    setattr(self.origins[-1], 'depth_in_m', depth[i])
-                if 'latitude' in self._parameters_names:
-                    setattr(self.origins[-1], 'latitude', latitude[i])
-                if 'longitude' in self._parameters_names:
-                    setattr(self.origins[-1], 'longitude', longitude[i])
-
+            # Create single origin for this candidate solution
+            self.origins = [self.catalog_origin.copy()]
+            if 'depth' in self._parameters_names:
+                setattr(self.origins[0], 'depth_in_m', depth)
+            if 'latitude' in self._parameters_names:
+                setattr(self.origins[0], 'latitude', latitude)
+            if 'longitude' in self._parameters_names:
+                setattr(self.origins[0], 'longitude', longitude)
+        
             return self.transformed_mean, self.origins
 
     def _datalogger(self, mean=False):
@@ -678,44 +707,48 @@ class CMA_ES(object):
         MTUQDataFrame
             The logged data.
         """
-        if self.rank == 0:
-            if not mean:
-                coordinates = self.transformed_mutants.T
-                misfit_values = self._misfit_holder
-                results = np.hstack((coordinates, misfit_values))
-                columns_labels = self._parameters_names + [0]
-                da = pd.DataFrame(
-                    data=results,
-                    columns=columns_labels
-                )
-                return MTUQDataFrame(da)
+        if self.rank != 0:
+            return
 
-            if mean:
-                transformed_mean = np.zeros_like(self.xmean)
-                for _i, param in enumerate(self._parameters):
-                    if param.scaling == 'linear':
-                        transformed_mean[_i] = linear_transform(self.xmean[_i], param.lower_bound, param.upper_bound)
-                    elif param.scaling == 'log':
-                        transformed_mean[_i] = logarithmic_transform(self.xmean[_i], param.lower_bound, param.upper_bound)
-                    else:
-                        raise ValueError('Unrecognized scaling, must be linear or log')
-                    # Apply optional projection operator to each parameter
-                    if not param.projection is None:
-                        transformed_mean[_i] = np.asarray(list(map(param.projection, transformed_mean[_i])))
+        if mean:
+            # Transform xmean into physical coordinates
+            transformed_mean = np.zeros_like(self.xmean)
+            for _i, param in enumerate(self._parameters):
+                if param.scaling == 'linear':
+                    transformed_mean[_i] = linear_transform(self.xmean[_i], param.lower_bound, param.upper_bound)
+                elif param.scaling == 'log':
+                    transformed_mean[_i] = logarithmic_transform(self.xmean[_i], param.lower_bound, param.upper_bound)
+                else:
+                    raise ValueError('Unrecognized scaling, must be linear or log')
 
-                # Include restart information
-                results = transformed_mean.T
-                columns_labels = self._parameters_names
+                if param.projection is not None:
+                    transformed_mean[_i] = np.asarray(list(map(param.projection, transformed_mean[_i])))
 
-                # Add a 'restart' column
-                df = pd.DataFrame(
-                    data=results,
-                    columns=columns_labels
-                )
-                if self.ipop:
-                    df['restart'] = self.current_restarts  # Tag with current restart number
+            data = transformed_mean.T
+            columns = self._parameters_names
+        else:
+            # Log all mutants and their misfit
+            data = np.hstack((self.transformed_mutants.T, self._misfit_holder))
+            columns = self._parameters_names + [0]
 
-                return MTUQDataFrame(df)
+        # Create the DataFrame
+        df = pd.DataFrame(data=data, columns=columns)
+
+        # Add 'restart' column if needed
+        if mean and self.ipop:
+            df['restart'] = self.current_restarts
+
+        # Inject v/w columns depending on mode
+        if self.mode == 'mt_dc':
+            df.insert(loc=df.columns.get_loc('Mw') + 1, column='v', value=0.0)
+            df.insert(loc=df.columns.get_loc('v') + 1, column='w', value=0.0)
+        elif self.mode == 'mt_dev':
+            if 'v' not in df.columns:
+                raise ValueError("Expected column 'v' in deviatoric mode but it's missing.")
+            df.insert(loc=df.columns.get_loc('v') + 1, column='w', value=0.0)
+
+        return MTUQDataFrame(df)
+
 
 
     def _prep_and_cache_C_arrays(self, data, greens, misfit, stations):
