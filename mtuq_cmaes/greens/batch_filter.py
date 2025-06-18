@@ -59,7 +59,7 @@ def batch_process_greens(
     verbose=False,
 ):
     """
-    Ultra-optimized version with maximum vectorization and minimal Python overhead.
+    Optimized version with maximum vectorization and minimal Python overhead.
     - Pre-allocates all arrays
     - Minimizes attribute access
     - Uses numpy broadcasting extensively
@@ -69,8 +69,10 @@ def batch_process_greens(
         return greens_list
 
     # Cache frequently accessed attributes at the top
-    freq_min = process.freq_min
-    freq_max = process.freq_max
+    filter_type = getattr(process, 'filter_type', 'bandpass')
+    freq_min = getattr(process, 'freq_min', None)
+    freq_max = getattr(process, 'freq_max', None)
+    freq = getattr(process, 'freq', None)
     window_type = getattr(process, 'window_type', 'surface_wave')
     window_length = getattr(process, 'window_length', None)
     pick_type = getattr(process, 'pick_type', 'taup')
@@ -174,13 +176,32 @@ def batch_process_greens(
             p_picks[i], s_picks[i] = picks_cache[key]
     
     # Design filter once
-    sos = butter(filter_order, [freq_min, freq_max], btype='bandpass', fs=fs, output='sos')
-    
-    # Vectorized filtering and scaling in single operation
-    if zerophase:
-        data_mat = sosfiltfilt(sos, data_mat, axis=1)
+    sos = None
+    if filter_type is not None:
+        filter_type = filter_type.lower()
+    if filter_type == 'bandpass':
+        if freq_min is None or freq_max is None:
+            raise ValueError('Bandpass filter requires freq_min and freq_max')
+        sos = butter(filter_order, [freq_min, freq_max], btype='bandpass', fs=fs, output='sos')
+    elif filter_type == 'lowpass':
+        if freq is None:
+            raise ValueError('Lowpass filter requires freq')
+        sos = butter(filter_order, freq, btype='lowpass', fs=fs, output='sos')
+    elif filter_type == 'highpass':
+        if freq is None:
+            raise ValueError('Highpass filter requires freq')
+        sos = butter(filter_order, freq, btype='highpass', fs=fs, output='sos')
+    elif filter_type is None:
+        sos = None
     else:
-        data_mat = sosfilt(sos, data_mat, axis=1)
+        raise ValueError(f'Unknown filter_type: {filter_type}')
+
+    # Vectorized filtering and scaling in single operation
+    if sos is not None:
+        if zerophase:
+            data_mat = sosfiltfilt(sos, data_mat, axis=1)
+        else:
+            data_mat = sosfilt(sos, data_mat, axis=1)
     
     # Apply scaling (broadcasting)
     data_mat *= scaling_factors[:, None]
