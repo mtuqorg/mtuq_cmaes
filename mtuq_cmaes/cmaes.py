@@ -326,7 +326,10 @@ class CMA_ES(object):
                 local_misfit_val = np.asarray(local_misfit_val).T
             else:
                 local_misfit_val = [m(d, processed_greens.select(origin), np.array([self.sources[_i]])) for _i, origin in enumerate(self.origins)]
-                local_misfit_val = np.asarray(local_misfit_val).T[0]
+                if not local_misfit_val:
+                    local_misfit_val = np.array([[]])
+                else:
+                    local_misfit_val = np.asarray(local_misfit_val).T[0]
             if self.verbose_level >= 2:
                 print(f'local misfit (wave type {idx}) is :', local_misfit_val)
             misfit_val = self.comm.gather(local_misfit_val.T, root=0)
