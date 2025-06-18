@@ -49,8 +49,9 @@ def _initialize_parameters(cmaes_instance, parameters_list, lmbda, origin, callb
     cmaes_instance._misfit_holder = np.zeros((int(cmaes_instance.lmbda), 1))
 
     # Ensure that the number of MPI processes is not greater than the population size
-    if cmaes_instance.size > cmaes_instance.lmbda:
-        raise ValueError(f'Number of MPI processes ({cmaes_instance.size}) exceeds population size ({cmaes_instance.lmbda})')
+    if cmaes_instance.size > cmaes_instance.lmbda and cmaes_instance.rank == 0:
+        import warnings
+        warnings.warn(f'Number of MPI processes ({cmaes_instance.size}) exceeds population size ({cmaes_instance.lmbda}). Some processes may be idle.')
 
     # Validate the origin parameter
     if not isinstance(origin, Origin):
