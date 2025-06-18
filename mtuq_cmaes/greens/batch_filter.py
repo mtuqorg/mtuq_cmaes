@@ -114,7 +114,6 @@ def batch_process_greens(
     lat2, lon2 = metadata[:, 2], metadata[:, 3]  # stations
     
     # Simplified distance calculation (avoiding individual gps2dist_azimuth calls)
-    from obspy.geodetics.base import degrees2kilometers
     dlat = lat2 - lat1
     dlon = lon2 - lon1
     a = np.sin(np.radians(dlat/2))**2 + np.cos(np.radians(lat1)) * np.cos(np.radians(lat2)) * np.sin(np.radians(dlon/2))**2
