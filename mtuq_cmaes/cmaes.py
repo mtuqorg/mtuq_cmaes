@@ -750,7 +750,7 @@ class CMA_ES(object):
 
         # Inject v/w columns depending on mode
         if self.mode == 'mt_dc':
-            df.insert(loc=df.columns.get_loc('Mw') + 1, column='v', value=0.0)
+            df.insert(loc=df.columns.get_loc('rho') + 1, column='v', value=0.0)
             df.insert(loc=df.columns.get_loc('v') + 1, column='w', value=0.0)
         elif self.mode == 'mt_dev':
             if 'v' not in df.columns:

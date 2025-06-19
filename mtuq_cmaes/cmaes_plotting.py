@@ -57,13 +57,13 @@ def plot_combined(filename, ds, **kwargs):
     # Make it so that the v column is the 2nd column in the DataArray or DataFrame.
     if "v" not in ds_lune:
         ds_lune["v"] = 0
-        ds_lune = ds_lune[["Mw", "v", "kappa", "sigma", "h", 0]]
+        ds_lune = ds_lune[["rho", "v", "kappa", "sigma", "h", 0]]
 
     # Check if key w is present in ds_lune, else add a column of same length as the other columns and fill it with zeros.
     # Make it so that the w column is the 3rd column in the DataArray or DataFrame.
     if "w" not in ds_lune:
         ds_lune["w"] = 0
-        ds_lune = ds_lune[["Mw", "v", "w", "kappa", "sigma", "h", 0]]
+        ds_lune = ds_lune[["rho", "v", "w", "kappa", "sigma", "h", 0]]
 
 
     # Apply the necessary preprocessing to each dataset

@@ -127,16 +127,16 @@ def initialize_mt(Mw_range=[4,5], depth_range=None, latitude_range=None, longitu
     '''
 
     # Defining the inverted parameters to initialise the CMA-ES
-    # The order expected by CMA-ES is set to 'Mw, v, w, kappa, sigma, h, depth, latitude, longitude', with depth, lat and lon being completely optional.
+    # The order expected by CMA-ES is set to 'rho, v, w, kappa, sigma, h, depth, latitude, longitude', with depth, lat and lon being completely optional.
 
-    Mw = CMAESParameters('Mw', Mw_range[0], Mw_range[1], scaling='log', repair='transformation', projection=to_rho)
+    rho = CMAESParameters('rho', Mw_range[0], Mw_range[1], scaling='log', repair='transformation', projection=to_rho)
     v = CMAESParameters('v', -1/3, 1/3, scaling='linear', repair='transformation')
     w = CMAESParameters('w', (-3/8*np.pi), (3/8*np.pi), scaling='linear', repair='transformation')
     kappa = CMAESParameters('kappa', 0, 360, scaling='linear', repair='wrapping')
     sigma = CMAESParameters('sigma', -90, 90, scaling='linear', repair='transformation')
     h = CMAESParameters('h', 0, 1, scaling='linear', repair='transformation')
 
-    parameters_list = [Mw, v, w, kappa, sigma, h]
+    parameters_list = [rho, v, w, kappa, sigma, h]
 
     if depth_range:
         depth = CMAESParameters('depth', depth_range[0], depth_range[1])
