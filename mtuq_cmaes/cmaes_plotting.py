@@ -202,9 +202,21 @@ def plot_mean_waveforms(cmaes_instance, data_list, process_list, misfit_list, st
         greens = [None] * len(process_list)
         for i in range(len(process_list)):
             greens[i] = _greens.map(process_list[i])
-            greens[i][0].tags[0] = 'model:ak135f_2s'
     elif mode == 'greens':
         greens = greens_or_db
+
+    # Clean up model tag for both db and greens modes, and truncate to 12 characters if needed
+    for i in range(len(greens)):
+        model_tag = greens[i][0].tags[0]
+        if model_tag.startswith('model:'):
+            model_path = model_tag[len('model:'):]
+            last_folder = model_path.rstrip('/').split('/')[-1]
+            # Truncate to 25 characters, add ellipsis if needed
+            if len(last_folder) > 25:
+                short_folder = last_folder[:22] + '...'
+            else:
+                short_folder = last_folder
+            greens[i][0].tags[0] = f'model:{short_folder}'
 
     # Check for the occurences of mtuq.misfit.polarity.PolarityMisfit in misfit_list:
     # if present, remove the corresponding data, greens, process and misfit from the lists
