@@ -856,7 +856,7 @@ class CMA_ES(object):
                 print('Data arrays already cached. Nothing to do here.')
             pass
 
-    def Solve(self, data_list, stations, misfit_list, process_list, db_or_greens_list, max_iter=100, wavelet=None, plot_interval=10, iter_count=0, misfit_weights=None, normalize_data=True, **kwargs):
+    def Solve(self, data_list, stations, misfit_list, process_list, db_or_greens_list, max_iter=100, wavelet=None, plot_interval=10, iter_count=0, misfit_weights=None, normalize_data=True, normalize_weights=True, **kwargs):
         """
         Solves for the best-fitting source model using the CMA-ES algorithm. This is the master method used in inversions. 
 
@@ -886,6 +886,8 @@ class CMA_ES(object):
             Whether to normalize the data during misfit evaluation. Default is True.
         misfit_weights : list, optional
             List of misfit weights. Default is None for equal weights.
+        normalize_weights : bool, optional
+            Whether to normalize the misfit weights. Default is True. If False, the weights are used as is.
         **kwargs
             Additional keyword arguments passed to eval_fitness method.
 
@@ -910,11 +912,11 @@ class CMA_ES(object):
         elif len(misfit_weights) != len(data_list):
             raise ValueError('Length of misfit_weights must match the length of data_list.')
 
-        total_weight = sum(misfit_weights)
-        if total_weight == 0:
-            raise ValueError('Sum of weights cannot be zero.')
-
-        misfit_weights = [w / total_weight for w in misfit_weights]
+        if normalize_weights:
+            total_weight = sum(misfit_weights)
+            if total_weight == 0:
+                raise ValueError('Sum of weights cannot be zero.')
+            misfit_weights = [w / total_weight for w in misfit_weights]
 
         if not normalize_data and misfit_weights is not None:
             if self.rank == 0:
