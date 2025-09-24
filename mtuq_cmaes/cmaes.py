@@ -436,19 +436,43 @@ class CMA_ES(object):
                 if misfit.min() < self.best_misfit:
                     self.best_misfit = misfit.min()
                     self.best_solution = self.mutants[:, 0].copy()
+                    # Also track the transformed best and corresponding origin
+                    self.best_transformed_solution = self.transformed_mutants[:, 0].copy()
+                    # Build an origin for the best (single)
+                    best_origin = self.catalog_origin.copy()
+                    if 'depth' in self._parameters_names:
+                        setattr(best_origin, 'depth_in_m', self.best_transformed_solution[self._parameters_names.index('depth')])
+                    if 'latitude' in self._parameters_names:
+                        setattr(best_origin, 'latitude', self.best_transformed_solution[self._parameters_names.index('latitude')])
+                    if 'longitude' in self._parameters_names:
+                        setattr(best_origin, 'longitude', self.best_transformed_solution[self._parameters_names.index('longitude')])
+                    self.best_origin = best_origin
                     self.no_improve_counter = 0  # Reset patience counter
                 else:
                     self.no_improve_counter += 1
             else:
                 self.best_misfit = misfit.min()
                 self.best_solution = self.mutants[:, 0].copy()
+                self.best_transformed_solution = self.transformed_mutants[:, 0].copy()
+                best_origin = self.catalog_origin.copy()
+                if 'depth' in self._parameters_names:
+                    setattr(best_origin, 'depth_in_m', self.best_transformed_solution[self._parameters_names.index('depth')])
+                if 'latitude' in self._parameters_names:
+                    setattr(best_origin, 'latitude', self.best_transformed_solution[self._parameters_names.index('latitude')])
+                if 'longitude' in self._parameters_names:
+                    setattr(best_origin, 'longitude', self.best_transformed_solution[self._parameters_names.index('longitude')])
+                self.best_origin = best_origin
         else:
             self.best_misfit = None
             self.best_solution = None
+            self.best_transformed_solution = None
+            self.best_origin = None
 
         # Broadcast the updated variables to all ranks
         self.best_misfit = self.comm.bcast(self.best_misfit, root=0)
         self.best_solution = self.comm.bcast(self.best_solution, root=0)
+        self.best_transformed_solution = self.comm.bcast(self.best_transformed_solution, root=0)
+        self.best_origin = self.comm.bcast(self.best_origin, root=0)
         if self.ipop:
             self.no_improve_counter = self.comm.bcast(self.no_improve_counter, root=0)
 

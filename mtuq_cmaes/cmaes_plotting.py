@@ -22,7 +22,11 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 def result_plots(cmaes_instance, data_list, stations, misfit_list, process_list, db_or_greens_list, max_iter, plot_interval, iter_count, iteration):
     if (iteration + 1) % plot_interval == 0 or iteration == max_iter - 1 or (cmaes_instance.ipop and cmaes_instance.ipop_terminated):
         if cmaes_instance.rank == 0:
-            plot_mean_waveforms(cmaes_instance, data_list, process_list, misfit_list, stations, db_or_greens_list, iteration)
+            # At IPOP termination, ensure plotting of the absolute best solution
+            if cmaes_instance.ipop and cmaes_instance.ipop_terminated:
+                plot_best_waveforms(cmaes_instance, data_list, process_list, misfit_list, stations, db_or_greens_list, iteration)
+            else:
+                plot_mean_waveforms(cmaes_instance, data_list, process_list, misfit_list, stations, db_or_greens_list, iteration)
             if cmaes_instance.mode in ['mt', 'mt_dc', 'mt_dev']:
                 print('Plotting results for iteration %d\n' % (iteration + 1 + iter_count))
                 result = cmaes_instance.mutants_logger_list
@@ -32,14 +36,14 @@ def result_plots(cmaes_instance, data_list, stations, misfit_list, process_list,
 
                 # If mode is mt, mt_dev or mt_dc, plot the misfit map
             if cmaes_instance.mode in ['mt', 'mt_dev']:
-                plot_combined(cmaes_instance.event_id + '_combined_misfit_map.png', result, colormap='viridis')
+                plot_combined(cmaes_instance.event_id + '_combined_misfit_map.pdf', result, colormap='viridis')
             elif cmaes_instance.mode == 'mt_dc':
-                plot_misfit_dc(cmaes_instance.event_id + '_misfit_map.png', result, clip_interval=[0,90])
+                plot_misfit_dc(cmaes_instance.event_id + '_misfit_map.pdf', result, clip_interval=[0,90])
             elif cmaes_instance.mode == 'force':
                 print('Plotting results for iteration %d\n' % (iteration + 1 +iter_count))
                 result = cmaes_instance.mutants_logger_list
                 print("Not implemented yet")
-                plot_misfit_force(cmaes_instance.event_id + '_misfit_map.png', result, plot_type='colormesh', clip_interval=[0,90])
+                plot_misfit_force(cmaes_instance.event_id + '_misfit_map.pdf', result, plot_type='colormesh', clip_interval=[0,90])
 
 
 def plot_combined(filename, ds, **kwargs):
@@ -123,7 +127,7 @@ def plot_combined(filename, ds, **kwargs):
     plt.close()
 
 
-def plot_mean_waveforms(cmaes_instance, data_list, process_list, misfit_list, stations, db_or_greens_list, iteration):
+def plot_mean_waveforms(cmaes_instance, data_list, process_list, misfit_list, stations, db_or_greens_list, iteration, mode: str = 'mean'):
     """
     Plots the mean waveforms using the base mtuq waveform plots (mtuq.graphics.waveforms).
 
@@ -167,7 +171,9 @@ def plot_mean_waveforms(cmaes_instance, data_list, process_list, misfit_list, st
     if cmaes_instance.rank != 0:
         return  # Exit early if not rank 0
 
-    mean_solution, final_origin = cmaes_instance.return_candidate_solution()
+    # Determine candidate selection mode
+    candidate_mode = mode if mode in ('mean', 'absolute') else 'mean'
+    mean_solution, final_origin = cmaes_instance.return_candidate_solution(candidate_mode)
 
     # Solution grid will change depending on the mode (mt, mt_dev, mt_dc, or force)
     modes = {
@@ -231,7 +237,11 @@ def plot_mean_waveforms(cmaes_instance, data_list, process_list, misfit_list, st
             del greens[i]
 
     # Include the restart information in the filename _iteration_restart
-    name_string = cmaes_instance.event_id + '_waveforms_mean_restart_' + str(cmaes_instance.current_restarts) + '_' + str(iteration + 1) if cmaes_instance.ipop == True else cmaes_instance.event_id + '_waveforms_mean_' + str(iteration + 1)
+    suffix = 'best' if candidate_mode == 'absolute' else 'mean'
+    if cmaes_instance.ipop:
+        name_string = f"{cmaes_instance.event_id}_waveforms_{suffix}_restart_{cmaes_instance.current_restarts}_{iteration + 1}"
+    else:
+        name_string = f"{cmaes_instance.event_id}_waveforms_{suffix}_{iteration + 1}"
 
     # Plot based on the number of ProcessData objects in the process_list
     if len(process) == 2:
@@ -241,6 +251,14 @@ def plot_mean_waveforms(cmaes_instance, data_list, process_list, misfit_list, st
     elif len(process) == 1:
         plot_data_greens1(name_string + '.pdf',
                             data[0], greens[0], process[0], misfit[0], stations, final_origin, best_source, lune_dict)
+
+
+def plot_best_waveforms(cmaes_instance, data_list, process_list, misfit_list, stations, db_or_greens_list, iteration):
+    """
+    Convenience wrapper to plot waveforms for the absolute best solution found
+    across all iterations/restarts (used at IPOP termination).
+    """
+    return plot_mean_waveforms(cmaes_instance, data_list, process_list, misfit_list, stations, db_or_greens_list, iteration, mode='absolute')
 
 
 def _cmaes_scatter_plot(cmaes_instance):

@@ -122,6 +122,8 @@ def _initialize_ipop(cmaes_instance, max_restarts: int = 10, lambda_increase_fac
     cmaes_instance.no_improve_counter = 0
     cmaes_instance.best_misfit = np.inf
     cmaes_instance.best_solution = None
+    cmaes_instance.best_transformed_solution = None
+    cmaes_instance.best_origin = None
     cmaes_instance.best_origins = None
 
     if cmaes_instance.rank == 0:
