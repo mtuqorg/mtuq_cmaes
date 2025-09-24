@@ -1,6 +1,6 @@
 import numpy as np
 from mtuq.graphics import plot_data_greens2, plot_data_greens1, plot_misfit_dc, plot_misfit_force
-from mtuq.graphics.uq._matplotlib import _hammer_projection, _generate_lune, _generate_sphere, _plot_lune_matplotlib, _plot_dc_matplotlib
+from mtuq.graphics.uq._matplotlib import _hammer_projection, _generate_lune, _generate_sphere, _plot_lune_matplotlib, _plot_dc_matplotlib, _set_dc_labels
 from mtuq.graphics.uq.lune import _plot_lune
 from mtuq.graphics.uq.double_couple import _plot_dc, _misfit_dc_random, _misfit_dc_regular   
 from mtuq.graphics.uq.vw import _misfit_vw_regular, _misfit_vw_random
@@ -16,6 +16,8 @@ import matplotlib.gridspec as gridspec
 import tempfile
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
+from matplotlib import ticker
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 def result_plots(cmaes_instance, data_list, stations, misfit_list, process_list, db_or_greens_list, max_iter, plot_interval, iter_count, iteration):
     if (iteration + 1) % plot_interval == 0 or iteration == max_iter - 1 or (cmaes_instance.ipop and cmaes_instance.ipop_terminated):
@@ -260,6 +262,7 @@ def _cmaes_scatter_plot(cmaes_instance):
         if cmaes_instance.mode in ['mt', 'mt_dev', 'mt_dc']:
             if cmaes_instance.fig is None:
                 cmaes_instance.fig, cmaes_instance.ax = _generate_lune()
+                cmaes_instance.cb = None
 
             # Define v as by values from cmaes_instance.mutants_logger_list if it exists, otherwise pad with values of zeroes
             m = np.asarray(cmaes_instance.mutants_logger_list[0])
@@ -296,9 +299,30 @@ def _cmaes_scatter_plot(cmaes_instance):
             # Projecting the mutants onto the lune
             v, w = _hammer_projection(to_gamma(v), to_delta(w))
 
-            vmin, vmax = np.percentile(np.asarray(m), [0, 90])
+            vmin, vmax = np.nanpercentile(np.asarray(m), [0, 90])
 
-            cmaes_instance.ax.scatter(v[sorted_indices], w[sorted_indices], c=m[sorted_indices], s=3, vmin=vmin, vmax=vmax, zorder=100)
+            im = cmaes_instance.ax.scatter(
+                v[sorted_indices], w[sorted_indices], c=m[sorted_indices], s=3,
+                vmin=vmin, vmax=vmax, zorder=100, cmap='viridis'
+            )
+
+            # Match uq/_matplotlib axis limits for the lune
+            cmaes_instance.ax.set_xlim(-30.5, 30.5)
+            cmaes_instance.ax.set_ylim(-90, 90)
+
+            # Add/update bottom colorbar similar to uq/_matplotlib.py
+            if hasattr(cmaes_instance, 'cb') and cmaes_instance.cb is not None:
+                try:
+                    cmaes_instance.cb.remove()
+                except Exception:
+                    pass
+                cmaes_instance.cb = None
+
+            divider = make_axes_locatable(cmaes_instance.ax)
+            cax = divider.append_axes("bottom", '2%', pad=0.001)
+            cb = plt.colorbar(im, cax=cax, orientation='horizontal', ticks=ticker.MaxNLocator(nbins=5))
+            cb.set_label('l2-misfit')
+            cmaes_instance.cb = cb
 
             # Add the mean solution to the plot
 
@@ -310,6 +334,7 @@ def _cmaes_scatter_plot(cmaes_instance):
         elif cmaes_instance.mode == 'force':
             if cmaes_instance.fig is None:
                 cmaes_instance.fig, cmaes_instance.ax = _generate_sphere()
+                cmaes_instance.cb = None
 
             # phi and h will always be present in the mutants_logger_list
             m = np.asarray(cmaes_instance.mutants_logger_list[0])
@@ -330,10 +355,28 @@ def _cmaes_scatter_plot(cmaes_instance):
             # Projecting the mutants onto the sphere
             longitude, latitude = _hammer_projection(longitude, latitude)
 
-            vmin, vmax = np.percentile(np.asarray(m), [0, 90])
+            vmin, vmax = np.nanpercentile(np.asarray(m), [0, 90])
 
-            cmaes_instance.ax.scatter(longitude, latitude, c=m, s=3, vmin=vmin, vmax=vmax, zorder=100)
+            im = cmaes_instance.ax.scatter(longitude, latitude, c=m, s=3, vmin=vmin, vmax=vmax, zorder=100, cmap='viridis')
             cmaes_instance.ax.scatter(LONGITUDE, LATITUDE, c=restart, marker='x', zorder=10000, cmap='tab10', s=6)
+
+            # Match uq/_matplotlib axis limits for the sphere
+            cmaes_instance.ax.set_xlim(-180, 180)
+            cmaes_instance.ax.set_ylim(-90, 90)
+
+            # Add/update bottom colorbar matching uq/_matplotlib force style
+            if hasattr(cmaes_instance, 'cb') and cmaes_instance.cb is not None:
+                try:
+                    cmaes_instance.cb.remove()
+                except Exception:
+                    pass
+                cmaes_instance.cb = None
+
+            cbmin, cbmax = im.get_clim()
+            ticks = np.linspace(cbmin, cbmax, 3)
+            cb = plt.colorbar(im, location='bottom', ax=cmaes_instance.ax, pad=0.001, fraction=0.02, ticks=ticks)
+            cb.set_label('l2-misfit')
+            cmaes_instance.cb = cb
 
             cmaes_instance.fig.tight_layout()
 
@@ -355,96 +398,63 @@ def _cmaes_scatter_plot_dc(cmaes_instance):
     matplotlib.figure.Figure
         The figure object for the plot.
     """
-    if cmaes_instance.rank == 0:
-        # Define v as by values from cmaes_instance.mutants_logger_list if it exists, otherwise pad with values of zeroes
-        m = np.asarray(cmaes_instance.mutants_logger_list[0])
-        sorted_indices = np.argsort(m)[::-1]
+    if cmaes_instance.rank != 0:
+        return
 
-        kappa = np.asarray(cmaes_instance.mutants_logger_list['kappa'])
-        sigma = np.asarray(cmaes_instance.mutants_logger_list['sigma'])
-        h = np.asarray(cmaes_instance.mutants_logger_list['h'])
-        # omega = np.rad2deg(np.arccos(h))
-        omega = h
+    m = np.asarray(cmaes_instance.mutants_logger_list[0])
+    sorted_indices = np.argsort(m)[::-1]
 
-        # Handling the mean solutions
-        KAPPA, SIGMA, H = cmaes_instance.mean_logger_list['kappa'], cmaes_instance.mean_logger_list['sigma'], cmaes_instance.mean_logger_list['h']
-        # OMEGA = np.rad2deg(np.arccos(H))
-        OMEGA = H
-        if cmaes_instance.ipop:
-            restart = cmaes_instance.mean_logger_list['restart']
-        else:
-            restart = np.zeros_like(KAPPA)
+    kappa = np.asarray(cmaes_instance.mutants_logger_list['kappa'])
+    sigma = np.asarray(cmaes_instance.mutants_logger_list['sigma'])
+    h = np.asarray(cmaes_instance.mutants_logger_list['h'])
+    omega = h
 
-        vmin, vmax = np.percentile(np.asarray(m), [0, 90])
+    KAPPA = cmaes_instance.mean_logger_list['kappa']
+    SIGMA = cmaes_instance.mean_logger_list['sigma']
+    H = cmaes_instance.mean_logger_list['h']
+    OMEGA = H
+    restart = cmaes_instance.mean_logger_list['restart'] if cmaes_instance.ipop else np.zeros_like(KAPPA)
 
-        fig = plt.figure(figsize=(5, 5))
-        gs = GridSpec(2, 2, figure=fig)
+    vmin, vmax = np.nanpercentile(np.asarray(m), [0, 90])
 
-        # Turn off the unused subplot (bottom-left)
-        ax_unused = fig.add_subplot(gs[1, 0])
-        ax_unused.axis('off')
+    fig, axes = plt.subplots(2, 2, figsize=(8., 8.))
 
-        kappa_ticks = [0, 45, 90, 135, 180, 225, 270, 315, 360]
-        kappa_ticklabels = ['0', '', '90', '', '180', '', '270', '', '360']
+    plt.subplots_adjust(wspace=0.4, hspace=0.4, right=0.88)
 
-        sigma_ticks = [-90, -67.5, -45, -22.5, 0, 22.5, 45, 67.5, 90]
-        sigma_ticklabels = ['-90', '', '-45', '', '0', '', '45', '', '90']
+    # kappa vs omega (top-left)
+    ax1 = axes[0][0]
+    scatter1 = ax1.scatter(omega[sorted_indices], kappa[sorted_indices], c=m[sorted_indices], s=3,
+                           vmin=vmin, vmax=vmax, zorder=100, cmap='viridis')
+    ax1.scatter(OMEGA, KAPPA, c=restart, marker='x', zorder=10000, cmap='tab10', s=6)
+    ax1.set_xlim(0, 1)
+    ax1.set_ylim(0, 360)
 
-        h_ticks = [np.cos(np.radians(tick)) for tick in [0, 15, 30, 45, 60, 75, 90]]
-        h_ticklabels = ['0', '', '30', '', '60', '', '90']
-        
+    # kappa vs sigma (top-right)
+    ax2 = axes[0][1]
+    scatter2 = ax2.scatter(sigma[sorted_indices], kappa[sorted_indices], c=m[sorted_indices], s=3,
+                           vmin=vmin, vmax=vmax, zorder=100, cmap='viridis')
+    ax2.scatter(SIGMA, KAPPA, c=restart, marker='x', zorder=10000, cmap='tab10', s=6)
+    ax2.set_xlim(-90, 90)
+    ax2.set_ylim(0, 360)
 
-        # Plotting kappa vs omega in the top-right subplot, sharing x-axis with ax1
-        ax1 = fig.add_subplot(gs[0, 0])
-        scatter1 = ax1.scatter(omega[sorted_indices], kappa[sorted_indices], c=m[sorted_indices], s=3,
-                            vmin=vmin, vmax=vmax, zorder=100)
-        ax1.scatter(OMEGA, KAPPA, c=restart, marker='x', zorder=10000, cmap='tab10', s=6)
-        ax1.set_xlabel('Dip')
-        ax1.set_ylabel('Strike')
+    # sigma vs omega (bottom-right)
+    ax3 = axes[1][1]
+    scatter3 = ax3.scatter(sigma[sorted_indices], omega[sorted_indices], c=m[sorted_indices], s=3,
+                           vmin=vmin, vmax=vmax, zorder=100, cmap='viridis')
+    ax3.scatter(SIGMA, OMEGA, c=restart, marker='x', zorder=10000, cmap='tab10', s=6)
+    ax3.set_ylim(0, 1)
+    ax3.set_xlim(-90, 90)
 
-        ax1.set_xlim(0, 1)
-        ax1.set_ylim(0, 360)
+    # Apply the same labeling/ticks as the backend
+    _set_dc_labels(axes)
 
-        ax1.set_xticks(h_ticks)
-        ax1.set_xticklabels(h_ticklabels)
-        ax1.set_yticks(kappa_ticks)
-        ax1.set_yticklabels(kappa_ticklabels)
+    # Reserve right margin and add vertical colorbar
+    cbar_ax = fig.add_axes([0.91, 0.13, 0.0125, 0.27])
+    cb = plt.colorbar(scatter1, cax=cbar_ax, orientation='vertical')
+    formatter = ticker.ScalarFormatter()
+    formatter.set_powerlimits((-2, 2))
+    cb.ax.yaxis.set_major_formatter(formatter)
+    cb.set_label('l2-misfit')
 
-
-        # Plotting kappa vs sigma in the top-left subplot
-        ax2 = fig.add_subplot(gs[0, 1], sharey=ax1)
-        scatter2 = ax2.scatter(sigma[sorted_indices], kappa[sorted_indices], c=m[sorted_indices], s=3,
-                            vmin=vmin, vmax=vmax, zorder=100)
-        ax2.scatter(SIGMA, KAPPA, c=restart, marker='x', zorder=10000, cmap='tab10', s=6)
-        ax2.set_ylabel('Strike')
-        ax2.set_xlabel('Rake')
-
-        ax2.set_xlim(-90, 90)
-
-        ax2.set_xticks(sigma_ticks)
-        ax2.set_xticklabels(sigma_ticklabels)
-        ax2.set_yticks(kappa_ticks)
-        ax2.set_yticklabels(kappa_ticklabels)
-
-        # Plotting sigma vs omega in the bottom-right subplot, sharing y-axis with ax2
-        ax3 = fig.add_subplot(gs[1, 1], sharex=ax2)
-        scatter3 = ax3.scatter(sigma[sorted_indices], omega[sorted_indices], c=m[sorted_indices], s=3,
-                            vmin=vmin, vmax=vmax, zorder=100)
-        ax3.scatter(SIGMA, OMEGA, c=restart, marker='x', zorder=10000, cmap='tab10', s=6)
-        ax3.set_xlabel('Rake')
-        ax3.set_ylabel('Dip')
-
-        ax3.set_ylim(0, 1)
-
-
-        ax3.set_xticks(sigma_ticks)
-        ax3.set_xticklabels(sigma_ticklabels)
-        ax3.set_yticks(h_ticks)
-        ax3.set_yticklabels(h_ticklabels)
-
-        # Adjust layout to prevent overlap
-        fig.tight_layout()
-
-        # Return the figure
-        return fig
+    return fig
         
